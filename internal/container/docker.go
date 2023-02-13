@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/grussorusso/serverledge/internal/config"
 	//	"github.com/docker/docker/pkg/stdcopy"
 )
@@ -49,13 +50,28 @@ func (cf *DockerFactory) Create(image string, opts *ContainerOptions) (Container
 		}
 	}
 
+	portCont := nat.PortSet{
+		"8080/tcp": struct{}{},
+	}
+	portHost := nat.PortMap{
+		"8080/tcp": []nat.PortBinding{
+			{
+				HostIP:   "0.0.0.0",
+				HostPort: "8080",
+			},
+		},
+	}
+	log.Printf("PORTA CONTAINER: %s", portCont)
+	log.Printf("PORTA HOST: %s", portHost)
 	resp, err := cf.cli.ContainerCreate(cf.ctx, &container.Config{
-		Image: image,
-		Cmd:   opts.Cmd,
-		Env:   opts.Env,
-		Tty:   false,
+		Image:        image,
+		ExposedPorts: portCont, //----added
+		Cmd:          opts.Cmd,
+		Env:          opts.Env,
+		Tty:          false,
 	}, &container.HostConfig{
-		Resources: container.Resources{Memory: opts.MemoryMB * 1048576}, // convert to bytes
+		Resources:    container.Resources{Memory: opts.MemoryMB * 1048576}, // convert to bytes
+		PortBindings: portHost,                                             //----added
 	}, nil, nil, "")
 
 	id := resp.ID
