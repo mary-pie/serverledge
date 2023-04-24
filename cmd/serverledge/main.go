@@ -113,11 +113,12 @@ func main() {
 	}
 	// before register checkout other servers into the local area
 	//todo use this info later on; future work with active remote server selection
-	_, err := registry.GetAll(true)
+	servers, err := registry.GetAll(true)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
+	log.Println("Servers: ", servers)
 
 	url := fmt.Sprintf("http://%s:%d", utils.GetIpAddress().String(), config.GetInt(config.API_PORT, 1323))
 	myKey, err := registry.RegisterToEtcd(url)
@@ -139,10 +140,12 @@ func main() {
 
 	if !isInCloud {
 		err = registration.InitEdgeMonitoring(registry)
+		scheduling.InitLatencyMonitoring(registry) //Init monitoring latency
 		if err != nil {
 			log.Fatal(err)
 			os.Exit(1)
 		}
+
 	}
 
 	startAPIServer(e)
