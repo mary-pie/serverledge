@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-//Request represents a single function invocation.
+// Request represents a single function invocation.
 type Request struct {
 	ReqId      string
 	Fun        *Function
@@ -15,6 +15,7 @@ type Request struct {
 	RequestQoS
 	CanDoOffloading bool
 	Async           bool
+	NetLatencies    map[string]interface{}
 }
 
 type RequestQoS struct {

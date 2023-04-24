@@ -6,4 +6,5 @@ type InvocationRequest struct {
 	QoSMaxRespT     float64
 	CanDoOffloading bool
 	Async           bool
+	NetLatencies    map[string]interface{}
 }

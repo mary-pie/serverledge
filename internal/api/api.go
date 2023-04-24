@@ -63,6 +63,7 @@ func InvokeFunction(c echo.Context) error {
 	r.MaxRespT = invocationRequest.QoSMaxRespT
 	r.CanDoOffloading = invocationRequest.CanDoOffloading
 	r.Async = invocationRequest.Async
+	r.NetLatencies = invocationRequest.NetLatencies
 	r.ReqId = fmt.Sprintf("%s-%s%d", fun, node.NodeIdentifier[len(node.NodeIdentifier)-5:], r.Arrival.Nanosecond())
 	// init fields if possibly not overwritten later
 	r.ExecReport.SchedAction = ""
@@ -73,7 +74,7 @@ func InvokeFunction(c echo.Context) error {
 		return c.JSON(http.StatusOK, function.AsyncResponse{ReqId: r.ReqId})
 	}
 
-	err = scheduling.SubmitRequest(r)
+	err = scheduling.SubmitRequest(c, r)
 
 	if errors.Is(err, node.OutOfResourcesErr) {
 		return c.String(http.StatusTooManyRequests, "")

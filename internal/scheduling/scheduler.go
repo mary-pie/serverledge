@@ -10,6 +10,7 @@ import (
 
 	"github.com/grussorusso/serverledge/internal/metrics"
 	"github.com/grussorusso/serverledge/internal/node"
+	"github.com/labstack/echo/v4"
 
 	"github.com/grussorusso/serverledge/internal/config"
 
@@ -78,7 +79,7 @@ func Run(p Policy) {
 }
 
 // SubmitRequest submits a newly arrived request for scheduling and execution
-func SubmitRequest(r *function.Request) error {
+func SubmitRequest(c echo.Context, r *function.Request) error {
 	schedRequest := scheduledRequest{
 		Request:         r,
 		decisionChannel: make(chan schedDecision, 1)}
@@ -96,8 +97,7 @@ func SubmitRequest(r *function.Request) error {
 		//log.Printf("[%s] Dropping request", r)
 		return node.OutOfResourcesErr
 	} else if schedDecision.action == EXEC_REMOTE {
-		//log.Printf("Offloading request")
-		err = Offload(r, schedDecision.remoteHost)
+		err = Heuristic(r, c, schedDecision.remoteHost)
 		if err != nil {
 			return err
 		}
@@ -178,4 +178,31 @@ func handleOffload(r *scheduledRequest, serverHost string) {
 func handleCloudOffload(r *scheduledRequest) {
 	cloudAddress := config.GetString(config.CLOUD_URL, "")
 	handleOffload(r, cloudAddress)
+}
+
+// Decision heuristic for choosing between offloading with redirect or with forwarding
+func Heuristic(r *function.Request, c echo.Context, serverUrl string) error {
+	var err error
+	latMapClient := r.NetLatencies
+	log.Println("Latency Map from Client: ", latMapClient)
+	funcName := r.Fun.Name
+
+	/*
+		We assume that the client has sent its latency toward the node serverUrl
+		TODO: check if lantency of serverUrl is in latMapClient, otherwise directly forward request or redirect
+	*/
+	canRedirect, err := minLatency(latMapClient, serverUrl)
+	if err != nil {
+		return err
+	}
+	//choose between redirect or forwarding
+	if canRedirect {
+		err = OffloadRedirect(c, funcName, serverUrl)
+	} else {
+		err = Offload(r, serverUrl)
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
