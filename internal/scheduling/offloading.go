@@ -12,6 +12,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/client"
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/registration"
+	"github.com/labstack/echo/v4"
 )
 
 const SCHED_ACTION_OFFLOAD = "O"
@@ -95,5 +96,17 @@ func OffloadAsync(r *function.Request, serverUrl string) error {
 	}
 
 	// there is nothing to wait for
+	return nil
+}
+
+// Offloading with redirect
+func OffloadRedirect(c echo.Context, funName string, serverUrl string) error {
+	var err error
+
+	log.Println("HTTP/1.1 307 Temporary Redirect \n Location:", serverUrl+"/invoke/"+funName)
+	err = c.Redirect(http.StatusTemporaryRedirect, serverUrl+"/invoke/"+funName)
+	if err != nil {
+		return err
+	}
 	return nil
 }
