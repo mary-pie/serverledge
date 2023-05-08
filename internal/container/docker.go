@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/grussorusso/serverledge/internal/config"
@@ -34,6 +35,7 @@ func InitDockerContainerFactory() *DockerFactory {
 }
 
 func (cf *DockerFactory) Create(image string, opts *ContainerOptions) (ContainerID, error) {
+	log.Println("IMAGE NAME: ", image)
 	if !cf.HasImage(image) {
 		log.Printf("Pulling image: %s", image)
 		pullResp, err := cf.cli.ImagePull(cf.ctx, image, types.ImagePullOptions{})
@@ -47,6 +49,21 @@ func (cf *DockerFactory) Create(image string, opts *ContainerOptions) (Container
 			io.Copy(ioutil.Discard, pullResp)
 			log.Printf("Pulled image: %s", image)
 			refreshedImages[image] = true
+		}
+	}
+
+	var networkConfig *network.NetworkingConfig
+
+	if image != "marypie/serverledge-python-redis:latest" {
+		networkConfig = nil
+	} else {
+		log.Println("OK")
+		//network config for Cloud node connection to Redis DB
+		networkConfig = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{},
+		}
+		networkConfig.EndpointsConfig["redis"] = &network.EndpointSettings{
+			NetworkID: "redis-net",
 		}
 	}
 
@@ -72,7 +89,7 @@ func (cf *DockerFactory) Create(image string, opts *ContainerOptions) (Container
 	}, &container.HostConfig{
 		Resources:    container.Resources{Memory: opts.MemoryMB * 1048576}, // convert to bytes
 		PortBindings: portHost,                                             //----added
-	}, nil, nil, "")
+	}, networkConfig, nil, "")
 
 	id := resp.ID
 
@@ -122,6 +139,9 @@ func (cf *DockerFactory) GetIPAddress(contID ContainerID) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	/*log.Println("conJSON.NetworkSettings: ", contJson.NetworkSettings)
+	log.Println("contJson.NetworkSettings.Networks['redis'].IPAddress: ", contJson.NetworkSettings.Networks["redis"].IPAddress)
+	log.Println("contJson.NetworkSettings.IPAddress: ", contJson.NetworkSettings.IPAddress)*/
 	return contJson.NetworkSettings.IPAddress, nil
 }
 
